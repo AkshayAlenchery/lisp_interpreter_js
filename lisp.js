@@ -2,7 +2,13 @@ const globalEnv = {
   '+': input => input.reduce((a, b) => a + b),
   '-': input => input.length === 1 ? -1 * input[0] : input.reduce((a, b) => a - b),
   '*': input => input.reduce((a, b) => a * b),
-  '/': input => input.reduce((a, b) => a / b)
+  '/': input => input.reduce((a, b) => a / b),
+  '>': input => input.reduce((a, b) => a > b),
+  '<': input => input.reduce((a, b) => a < b),
+  '>=': input => input.reduce((a, b) => a >= b),
+  '<=': input => input.reduce((a, b) => a <= b),
+  '=': input => input.reduce((a, b) => a === b),
+  'pi': Math.PI
 }
 
 const numberParser = (inputExp, match = null) => (match = inputExp.match(/^-?(0|[1-9][0-9]*)(\.[0-9]+)?((e|E)(-|\+)?[0-9]+)?/)) === null ? null : [match[0] * 1, inputExp.slice(match[0].length).trim()]
@@ -10,6 +16,21 @@ const numberParser = (inputExp, match = null) => (match = inputExp.match(/^-?(0|
 const identifierParser = (inputExp, match = null) => (match = inputExp.match(/^[a-zA-Z]*/)) === null ? null : [match[0], inputExp.slice(match[0].length).trim()]
 
 const findInEnv = variable => globalEnv[variable] === undefined ? null : globalEnv[variable]
+
+const skipParser = inputExp => {
+  if (!inputExp.startsWith('(')) return null
+  inputExp = inputExp.slice(1)
+  let count = 1
+  let valid = '('
+  while (count) {
+    if (inputExp[0] === '(') count++
+    if (inputExp[0] === ')') count--
+    valid += inputExp[0]
+    inputExp = inputExp.slice(1)
+    if (count === 0) break
+  }
+  return [valid, inputExp.trim()]
+}
 
 const operatorParser = (inputExp) => {
   if (globalEnv[inputExp[0]] === undefined) return null
@@ -25,6 +46,27 @@ const operatorParser = (inputExp) => {
   if (!inputExp[0].startsWith(')')) return null
   inputExp = inputExp.slice(1).trim()
   return [globalEnv[operator](operands), inputExp]
+}
+
+const ifExecuter = exp => {
+
+}
+
+const ifParser = inputExp => {
+  if (!inputExp.startsWith('if')) return null
+  inputExp = inputExp.slice(2).trim()
+  const ifExpResult = evaluator(inputExp)
+  if (!ifExpResult) return null
+  inputExp = ifExpResult[1]
+  if (ifExpResult[0]) {
+    if (!inputExp.startsWith('(')) return null
+    const result = evaluator(inputExp)
+    if (!result) return null
+    return [result[0], '']
+  }
+  inputExp = skipParser(inputExp)[1]
+  if (!inputExp.startsWith('(')) return ['', '']
+  return [evaluator(inputExp)[0], '']
 }
 
 const defineParser = inputExp => {
@@ -47,7 +89,7 @@ const defineParser = inputExp => {
 const expressionParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
   inputExp = inputExp.slice(1).trim()
-  const result = operatorParser(inputExp)
+  const result = operatorParser(inputExp) || ifParser(inputExp)
   if (!result) return null
   return result
 }
@@ -80,6 +122,7 @@ const lispEval = inputExp => {
   return lispEval(result[1])
 }
 
-const input = '(define ak 100) (* ak ak)'
+const input = '(if (< 10 20) (define ak 10) (define ak 20))'
 console.log(lispEval(input))
+console.log(lispEval('(* ak ak)'))
 console.log(globalEnv)
