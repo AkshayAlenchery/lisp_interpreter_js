@@ -48,10 +48,6 @@ const operatorParser = (inputExp) => {
   return [globalEnv[operator](operands), inputExp]
 }
 
-const ifExecuter = exp => {
-
-}
-
 const ifParser = inputExp => {
   if (!inputExp.startsWith('if')) return null
   inputExp = inputExp.slice(2).trim()
@@ -67,6 +63,19 @@ const ifParser = inputExp => {
   inputExp = skipParser(inputExp)[1]
   if (!inputExp.startsWith('(')) return ['', '']
   return [evaluator(inputExp)[0], '']
+}
+
+const beginParser = inputExp => {
+  if (!inputExp.startsWith('begin')) return null
+  inputExp = inputExp.slice(5).trim()
+  let result
+  while (inputExp[0] !== ')') {
+    result = evaluator(inputExp)
+    if (!result) return null
+    inputExp = result[1]
+  }
+  if (!inputExp.startsWith(')')) return null
+  return [result[0], '']
 }
 
 const defineParser = inputExp => {
@@ -89,7 +98,7 @@ const defineParser = inputExp => {
 const expressionParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
   inputExp = inputExp.slice(1).trim()
-  const result = operatorParser(inputExp) || ifParser(inputExp)
+  const result = operatorParser(inputExp) || ifParser(inputExp) || beginParser(inputExp)
   if (!result) return null
   return result
 }
@@ -122,7 +131,6 @@ const lispEval = inputExp => {
   return lispEval(result[1])
 }
 
-const input = '(if (< 10 20) (define ak 10) (define ak 20))'
+const input = ''
 console.log(lispEval(input))
-console.log(lispEval('(* ak ak)'))
 console.log(globalEnv)
