@@ -19,7 +19,7 @@ const findInEnv = variable => globalEnv[variable] === undefined ? null : globalE
 
 const skipParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
-  inputExp = inputExp.slice(1)
+  inputExp = inputExp.slice(1).trim()
   let count = 1
   let valid = '('
   while (count) {
@@ -44,8 +44,7 @@ const operatorParser = (inputExp) => {
     inputExp = result[1]
   }
   if (!inputExp[0].startsWith(')')) return null
-  inputExp = inputExp.slice(1).trim()
-  return [globalEnv[operator](operands), inputExp]
+  return [globalEnv[operator](operands), inputExp.slice(1).trim()]
 }
 
 const ifParser = inputExp => {
@@ -75,7 +74,7 @@ const beginParser = inputExp => {
     inputExp = result[1]
   }
   if (!inputExp.startsWith(')')) return null
-  return [result[0], '']
+  return [result[0], inputExp.slice(1).trim()]
 }
 
 const defineParser = inputExp => {
@@ -91,8 +90,16 @@ const defineParser = inputExp => {
   inputExp = varValue[1]
   if (!inputExp.startsWith(')')) return null
   globalEnv[varName] = varValue[0]
-  inputExp = inputExp.slice(1)
-  return [varName, inputExp]
+  return [varName, inputExp.slice(1)]
+}
+
+const quoteParser = inputExp => {
+  if (!inputExp.startsWith('quote')) return null
+  inputExp = inputExp.slice(5).trim()
+  const result = skipParser(inputExp)
+  if (!result) return null
+  if (!result[1].startsWith(')')) return null
+  return [result[0], result[1].slice(1).trim()]
 }
 
 const expressionParser = inputExp => {
@@ -106,7 +113,7 @@ const expressionParser = inputExp => {
 const specialFormParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
   inputExp = inputExp.slice(1).trim()
-  const result = defineParser(inputExp)
+  const result = defineParser(inputExp) || quoteParser(inputExp)
   if (!result) return null
   return result
 }
