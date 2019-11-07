@@ -11,7 +11,12 @@ const globalEnv = {
   'pi': Math.PI
 }
 
-const numberParser = (inputExp, match = null) => (match = inputExp.match(/^-?(0|[1-9][0-9]*)(\.[0-9]+)?((e|E)(-|\+)?[0-9]+)?/)) === null ? null : [match[0] * 1, inputExp.slice(match[0].length).trim()]
+const numberParser = (inputExp, match = null) => {
+  if (inputExp.startsWith('(')) inputExp = inputExp.slice(1).trim()
+  match = inputExp.match(/^-?(0|[1-9][0-9]*)(\.[0-9]+)?((e|E)(-|\+)?[0-9]+)?/)
+  if (match === null) return null
+  return [match[0] * 1, inputExp.slice(match[0].length).trim()]
+}
 
 const identifierParser = (inputExp, match = null) => (match = inputExp.match(/^[a-zA-Z]*/)) === null ? null : [match[0], inputExp.slice(match[0].length).trim()]
 
@@ -33,8 +38,11 @@ const skipParser = inputExp => {
 }
 
 const operatorParser = (inputExp) => {
-  if (globalEnv[inputExp[0]] === undefined) return null
-  const operator = inputExp[0]
+  const operator = inputExp.slice(0, inputExp.indexOf(' '))
+  if (globalEnv[operator] === undefined) return null
+  if (typeof globalEnv[operator] === 'object') {
+    inputExp = inputExp.slice(operator.length).trim()
+  }
   inputExp = inputExp.slice(1).trim()
   const operands = []
   while (inputExp[0] !== ')') {
@@ -54,14 +62,16 @@ const ifParser = inputExp => {
   if (!ifExpResult) return null
   inputExp = ifExpResult[1]
   if (ifExpResult[0]) {
-    if (!inputExp.startsWith('(')) return null
     const result = evaluator(inputExp)
     if (!result) return null
     return [result[0], '']
   }
   inputExp = skipParser(inputExp)[1]
-  if (!inputExp.startsWith('(')) return ['', '']
-  return [evaluator(inputExp)[0], '']
+  if (inputExp.startsWith(')')) return ['', '']
+  const result = evaluator(inputExp)
+  if (!result) return null
+  if (!result[1].startsWith(')')) return null
+  return [result[0], result[1].slice(1).trim()]
 }
 
 const beginParser = inputExp => {
@@ -85,7 +95,7 @@ const defineParser = inputExp => {
   if (!checkVar) return null
   if (checkVar[0] !== varName) return null
   inputExp = inputExp.slice(varName.length).trim()
-  const varValue = numberParser(inputExp)
+  const varValue = evaluator(inputExp)
   if (!varValue) return null
   inputExp = varValue[1]
   if (!inputExp.startsWith(')')) return null
@@ -102,6 +112,28 @@ const quoteParser = inputExp => {
   return [result[0], result[1].slice(1).trim()]
 }
 
+const lambdaParser = inputExp => {
+  if (!inputExp.startsWith('lambda')) return null
+  inputExp = inputExp.slice(6).trim()
+  if (!inputExp.startsWith('(')) return null
+  inputExp = inputExp.slice(1).trim()
+  const funcEnv = {}
+  const params = []
+  while (inputExp[0] !== ')') {
+    const result = identifierParser(inputExp)
+    if (!result) return null
+    params.push(result[0])
+    inputExp = result[1]
+  }
+  inputExp = inputExp.slice(1).trim()
+  const expResult = skipParser(inputExp)
+  if (!expResult) return null
+  if (!expResult[1].startsWith(')')) return null
+  funcEnv.params = params
+  funcEnv.def = expResult[0]
+  return [funcEnv, expResult[1].slice(1).trim()]
+}
+
 const expressionParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
   inputExp = inputExp.slice(1).trim()
@@ -113,7 +145,7 @@ const expressionParser = inputExp => {
 const specialFormParser = inputExp => {
   if (!inputExp.startsWith('(')) return null
   inputExp = inputExp.slice(1).trim()
-  const result = defineParser(inputExp) || quoteParser(inputExp)
+  const result = defineParser(inputExp) || quoteParser(inputExp) || lambdaParser(inputExp)
   if (!result) return null
   return result
 }
@@ -138,6 +170,6 @@ const lispEval = inputExp => {
   return lispEval(result[1])
 }
 
-const input = ''
+const input = '(define circle (lambda (a b c) (* pi a b c)))'
 console.log(lispEval(input))
 console.log(globalEnv)
